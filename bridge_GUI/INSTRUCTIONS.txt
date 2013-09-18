@@ -1,0 +1,75 @@
+This page contains basic instructions for running the YARP-ROS bridge.
+
+ * Author: Woody Rousseau
+ * email:  woody.rousseau@ensta-paristech.fr
+ * Please contact me if there is anything wrong with the bridge
+ * It has almost never been tested in real circumstances, so please inform me of any bug
+ * The application was tested on Ubuntu Precise (12.04) with ROS Groovy.
+
+== Purpose ==
+This bridge allows generic communication between YARP and ROS.
+
+== Setup ==
+If you followed the installation instructions for [[UPMC_iCub_project/MACSi_Software|MACSI]] and if you keep the paths
+intacts, you have to setup ROS accordingly : 
+
+* The ROS Workspace is set to the parent directory of $MACSI_ROOT
+* $ROS_PACKAGE_PATH must contain $MACSI_ROOT but also $MACSI_ROOT/main/src/tools/yarp_ros_bridge_generator/src. You may want to export these in your .bashrc/.zshrc.
+
+== Compilation and Installation ==
+
+The bridge can be installed as any MACSI module, provided it is listed in $MACSI_ROOT/main/src/tools's CMakeLists.txt. Follow the "ccmake ..", "make", "make install" routine.
+
+As the GUI does not use cmake, it must be compiled using qmake. The GUI is located in $MACSI_ROOT/main/src/tools/yarp_ros_bridge_generator/gui. It can there be compiled and moved to the wanted directory.
+
+== Running ==
+
+The bridge can be launched in command line with "yarprosbridge", provided your installation path in in your PATH environment.
+If you want to use the GUI, please run it from its directory (which means cd to the directory where it was installed and run it with ./). I am unsure if this is still needed, I will check it out.
+
+== How to Use ==
+The program currently supports communication between a ROS topic and a YARP port, on both sides.
+It succesfully sends any type of data, including image. It however for now fails to do so for images from ROS to YARP, for a currently unknown reason, but which I suspect is related to ROS build system.
+
+Please enter the configuration (module name, ports you want to use) in the .ini file located in :
+$MACSI_ROOT/main/app/ros/bridge.ini
+
+You can also pick a custom ".ini" file following the same format by using the option :
+./yarpbridge --from custom.ini
+Two examples (bridge_data.ini and bridge_image.ini) are provided in the ini directory.
+For more informations about custom .ini files, please check the YARP documentation dealing with ResourcesFinder.
+
+You can also use the GUI tool in order to generate such configurations files, save them or open previous ones. The GUI tool supports several tabs so that several instances of the bridge can run at once.
+
+== YARP->ROS ==
+The entry is a YARP port and the data is processed all the way to a ROS topic. 
+Thus, the YARP port specified in the .ini file must be the port you're trying to get data from. 
+You can pick any name for the ROS topic, just make sure it does not exist yet.
+
+The bridge processes the .ini file, figures out what types need to be used in ROS and create a custom .msg file. It means that ROS must have access to this .msg file, which is why we added the second directory to our $ROS_PACKAGE_PATH.
+It then has to cmake the ROS part of the bridge to generate the headers corresponding to the .msg file.
+It then compiles the ROS part of the bridge.
+For that reason, using this direction for the bridge can be quite long, though it checks if the .ini file was modified before recompiling.
+It then launches the ROS part of the bridge and sends data through the pipe.
+For images, generating the .msg file is not needed but the ROS node will be recompiled.
+
+Automatic mode allows the user to not enter the types and names of data sent. It however right now works mostly with vectors of simple data and not complexe structures. Give it a try, and if it does not work, check documentation to see what precisely stands in the YARP port.
+
+== ROS->YARP ==
+The entry is a ROS topic and the data is processed all the way to a YARP port. 
+Thus, the ROS topic specified in the .ini file must be the topic you're trying to get data from. 
+You can pick any name for the YARP port, just make sure it does not exist yet.
+
+The bridge processes the .ini file and uses a Python wrapper to grab messages from the ROS topic as a string.
+It sends these strings through a pipe.
+A thread receives these strings and processes them in YARP bottles before sending these bottles on the YARP port.
+When dealing with images, the Python wrapper is not needed as it is only used because we don't know anything about the message before run-time. However, as specified earlier, dealing with images does not work yet on that direction of the bridge.
+
+Automatic mode allows the user to not enter the types and names of data sent. It works using a Python script which figures out the data structure of the ROS message.
+Automatic mode works very well on that direction of the bridge, and you shouldn't ever have to use manual mode (though you can).
+
+== TO DO and Issues ==
+
+Please report any issue or improvement you want to make to the bridge.
+* (YARP->ROS) Storing the ROS node dealing with images and copy it when needed instead of recompiling it. 
+* Processes are sometimes not terminated in a clean way. For some reason, YARP sometimes does not like SIGINT signals. It is especially the case for the GUI. If something fails to work, check if there are any yarprosbridge processes running and if any YARP ports were not succesfully removed (a YARP clean should do)
